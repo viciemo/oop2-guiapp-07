@@ -1,49 +1,34 @@
-import mlx_whisper
-import numpy as np
-from pydub import AudioSegment
+import whisper
+import sys
 import os
 
-# 音声ファイルを指定して文字起こし
-audio_file_path = "python-audio-output.wav"
+# === Step 2: 文字起こし開始 ===
+print("=== Step 2: 文字起こし開始 ===")
 
-result = mlx_whisper.transcribe(
-  audio_file_path, path_or_hf_repo="whisper-base-mlx"
-)
-print(result)
+# 録音したファイルのパス（recording.py で作成されたものを想定）
+audio_file_path = "output/recording.wav"
 
+# ファイル存在確認
+if not os.path.exists(audio_file_path):
+    print(f"音声ファイルが見つかりません: {audio_file_path}")
+    sys.exit(1)
 
-# 音声データを指定して文字起こし
-def preprocess_audio(sound):
-    if sound.frame_rate != 16000:
-        sound = sound.set_frame_rate(16000)
-    if sound.sample_width != 2:
-        sound = sound.set_sample_width(2)
-    if sound.channels != 1:
-        sound = sound.set_channels(1)
-    return sound
+try:
+    # Whisperモデルをロード（初回のみ自動ダウンロード）
+    # 小さいモデルなら "tiny" や "small" も指定可
+    model = whisper.load_model("base")
 
-audio_data = []
+    # 文字起こしの実行
+    result = model.transcribe(audio_file_path, language="ja")
 
-# 音声データを音声ファイルから読み取る
-audio_data.append(AudioSegment.from_file("output/recording.wav", format="wav"))
+    # 結果を保存
+    text = result["text"]
+    os.makedirs("output", exist_ok=True)
+    with open("output/transcription.txt", "w", encoding="utf-8") as f:
+        f.write(text)
 
-for data in audio_data:
-    sound = preprocess_audio(data)
-    # Metal(GPU)が扱えるNumpy Array形式に変換
-    arr = np.array(sound.get_array_of_samples()).astype(np.float32) / 32768.0
-    result = mlx_whisper.transcribe(
-        arr, path_or_hf_repo="whisper-base-mlx"
-    )
-    print(result)
+    print("文字起こし完了！結果を output/transcription.txt に保存しました。")
 
-
-
-# 出力フォルダを作成（存在しなければ作成）
-os.makedirs("output", exist_ok=True)
-
-# text部分だけを取得
-text_content = result.get("text", "")
-
-# ファイルを上書きモードで保存（前の内容を削除して新規作成）
-with open("output/transcription.txt", "w", encoding="utf-8") as f:
-    f.write(text_content + "\n")
+except Exception as e:
+    print(f"文字起こし中にエラーが発生しました。終了します。\n詳細: {e}")
+    sys.exit(1)
