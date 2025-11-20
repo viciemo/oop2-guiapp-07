@@ -2,6 +2,8 @@ import ffmpeg
 import os
 from pathlib import Path
 
+#確認
+
 # 録音時間（秒）
 duration = 10
 # 出力フォルダとファイルパス
